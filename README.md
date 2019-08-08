@@ -1,14 +1,14 @@
 # VISLab coding test
 
-###Level 1
+### Level 1
 
 HK Temperature Heatmap
 
 ![level1](./figures/level1.png)
 
 ***
-
-###Level 2
+ 
+### Level 2
 
 HK Temperature Heatmap with mini line chart. 
 
@@ -16,7 +16,7 @@ HK Temperature Heatmap with mini line chart.
 
 ***
 
-###Level 3
+### Level 3
 
 HKUST Co-author Graph 
 
@@ -24,7 +24,7 @@ HKUST Co-author Graph
 
 ***
 
-###Level 4
+### Level 4
 
 ![level4](./figures/level4.png)
 
