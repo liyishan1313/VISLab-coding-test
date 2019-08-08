@@ -8,7 +8,7 @@ HK Temperature Heatmap
 
 ***
 
-### Level 2
+###Level 2
 
 HK Temperature Heatmap with mini line chart. 
 
@@ -24,7 +24,7 @@ HKUST Co-author Graph
 
 ***
 
-### Level 4
+###Level 4
 
 ![level4](./figures/level4.png)
 
