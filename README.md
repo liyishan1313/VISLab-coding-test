@@ -1,1 +1,0 @@
-# VISLab-coding-test
