@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>line graph</title>
+    <style>
+        html,body{
+            padding: 0;
+            margin: 0;
+        }
+        #root{
+            display: inline-flex;
+            background: #0e1114;
+
+            top:50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            position: absolute;
+        }
+        #info,svg{
+            position: absolute;
+        }
+        #info{
+            width:150px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            z-index: 300;
+            padding: 10px;
+            left:-1000px;
+        }
+        #dataset-picker{
+            position: absolute;
+            top: 950px;
+        }
+        #dataset-picker input{
+            margin: 20px;
+
+        }
+
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+</head>
+<body>
+<div id="">
+    <div id="info"></div>
+    <svg width="1400" height="1000"></svg>
+    <div id="dataset-picker"></div>
+</div>
+</body>
+</html>
+
+<script>
+    let min_Color = '#1E90FF';
+    let max_Color = '#981942';
+    let info = d3.select('#info');
+
+
+    d3.csv('temperature_daily.csv',row=>{
+
+
+        row.date = new Date(row.date);
+        row.Year = row.date.getFullYear();
+        row.Month = row.date.getMonth() + 1;
+        row.day = row.date.getDate();
+        row.min_temperature = +row.min_temperature;
+        row.max_temperature = +row.max_temperature;
+
+        return row;
+    })
+
+
+    .then(data => {
+        var new_data = [];
+        data.forEach(d => {
+            if (d.Year * 1 >= 2008) {
+                new_data.push(d);
+            }
+        });
+    var datasetpicker = d3.select("#dataset-picker").selectAll(".dataset-button")
+        .data(['max_temperature','min_temperature']);
+
+    datasetpicker.enter()
+        .append("input")
+        .attr("value", function(d){ return "Dataset " + d })
+        .attr("type", "button")
+        .attr("class", "dataset-button")
+        .on("click", function(d) {
+            //heatmapChart(d);
+            //console.log(d);
+            draw(d==='max_temperature')
+
+        });
+
+
+    let margin = {
+        left: 100,
+        top: 50,
+        right: 100,
+        bottom: 120
+    };
+    let svg = d3.select('svg');
+
+    let g = svg.append('g').attr('transform',`translate(${margin.left}, ${(margin.top)})`);
+
+
+    let w = +svg.attr('width') - margin.left - margin.right;
+    let h = +svg.attr('height') - margin.top - margin.bottom;
+
+    let colorLinear = d3.scaleLinear().domain([0,10]).range([min_Color, max_Color]);
+    var colorBar = svg.append("g")
+        .attr('transform', `translate(${(margin.left + 30)}, ${(margin.top + h + 20)})`);
+
+
+
+
+
+    let dataGroupByYear = d3.nest().key(d => d.Year).key(d => d.Month).entries(new_data); //new2008-2017
+    let dataGroupByYear2 = d3.nest().key(d => d.Year).key(d => d.Month).key(d => d.day).entries(new_data);
+
+
+    let scale_x = d3.scaleBand().domain(dataGroupByYear.map(d=>d.key)).range([0,w]).padding(0.1); //year - width
+    let scale_y = d3.scaleBand().domain(d3.range(1,13)).range([0,h]).padding(0.1); // 1-12 - height
+    let scale_y_axis = d3.scaleBand().domain(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul","Aug","Sep","Oct","Nov","Dec"]).range([0,h]).padding(0.1);
+
+    function draw(isHeight){
+
+        let minValues = [];
+        let change = [];
+        if (isHeight) {
+            dataGroupByYear.forEach(d=>{
+                let values = d.values;
+                    //console.log('values',values);
+                    //key 1-12 : values: 一个月的每天的max和min值
+                values.forEach(v=>{
+                    minValues.push(d3.min(v.values, d=>d.max_temperature)); })
+            });
+            //console.log(minValues);
+        }else {
+            dataGroupByYear.forEach(d=>{
+                let values = d.values;
+                //console.log('values',values);
+                values.forEach(v=>{
+                    minValues.push(d3.min(v.values, d=>d.min_temperature));
+                });
+            });
+        }
+
+
+        let color = d3.scaleLinear().domain(d3.extent(minValues)).range([min_Color, max_Color]);
+
+
+        g.html("");
+
+
+
+        dataGroupByYear.forEach(d => {
+            let values = d.values;
+
+            values.forEach(v=>{
+                let values2 = v.values;
+                //添加方格-rect
+                var rect = g.append('rect')
+                    .attr('x', scale_x(d.key)) //年的值对应的x位置
+                    .attr('y', scale_y(+v.key)) //月的值
+                    .attr('width', scale_x.bandwidth())
+                    .attr('height', scale_y.bandwidth())
+                    .style('fill',color(d3.min(v.values, d=>isHeight?d.max_temperature:d.min_temperature)))
+                    .on('mouseover',_=>{ //鼠标移入事件
+                            info.html("");
+                            info.html(`<div>Date: ${d.key}-${v.key}</div>
+                                    <div>min：${d3.min(v.values, d=>d.min_temperature)}, max：${d3.min(v.values, d=>d.max_temperature)}</div>
+                                  `);
+                            //鼠标当前的位置
+                            let coord = d3.mouse(svg.node()); //获取svg的html元素的
+                            info.style('left',(coord[0]+10)+'px').style('top', (coord[1]+10)+'px'); //横纵坐标
+                        })
+                        .on('mouseout',_=>{
+                            info.style('left', '-1000px')
+                        });
+                });
+        });
+        //坐标轴
+        g.append('g').call(d3.axisTop(scale_x));
+        g.append('g').call(d3.axisLeft(scale_y_axis));
+
+        // mini line chart
+
+
+
+        dataGroupByYear2.forEach(d => {
+            let values = d.values;
+
+            values.forEach(v=>{
+                var values2 = v.values;
+                var values3 = v.values;
+                var temps = {};
+                var lineDataMax = [];
+                var lineDataMin = [];
+                var padding1 = { top: 5, right: 5, bottom: 5, left: 5 };
+                var rect = g.append('rect')
+                    .attr('x', scale_x(d.key)) //年的值 (rect的起点)
+                    .attr('y', scale_y(+v.key)) //月的值
+                    .attr('width', scale_x.bandwidth())
+                    .attr('height', scale_y.bandwidth())
+
+
+                values2.forEach(z=>{
+                    let dayTempMax = d3.min(z.values,d=>d.max_temperature);
+                    temps[z.key] = dayTempMax;
+                    lineDataMax.push({ key: z.key, value: dayTempMax });
+                });
+
+                values3.forEach(l=>{
+                    let dayTempMin = d3.min(l.values,d=>d.min_temperature);
+                    temps[l.key] = dayTempMin;
+                    lineDataMin.push({ key: l.key, value: dayTempMin });
+                });
+
+                var j = 0;
+                let grid_x = d3.scaleBand().domain(Object.keys(temps)).range([0,scale_x.bandwidth()]).padding(0.1);//左起点
+                let grid_y = d3.scaleLinear().domain([-10,40]).range([scale_y.bandwidth(),0]); //下起点：左下
+
+                var xAxis = d3.axisBottom()
+                                .scale(grid_x);
+                var yAxis = d3.axisLeft()
+                                .scale(grid_y);
+
+
+                rect.attr('class', 'axis1')
+                        //.attr('transform', 'translate(' + padding1.left + ',' + padding1.bottom + ')')
+                        .call(xAxis);
+                rect.attr('class', 'axis1')
+                        //.attr('transform', 'translate(' + padding1.left + ',' +  padding1.top + ')')
+                        .call(yAxis);
+
+                //var className = (isHeight ? "line_temp_max-" :"line_temp_min") + v.key + "-" + d.key;
+                //console.log(className);
+
+                var lineMax = d3.line()
+                    .x(function (d) {
+                        return grid_x(d.key) //1-31
+                    })
+                    .y(function (d) {
+                        return grid_y(d.value)
+                    });
+
+                    //console.log(d.value);
+
+                var path_left = margin.left + scale_x(d.key);
+                var path_top = scale_y.bandwidth() + scale_y(+v.key);
+
+                    svg.append("path")
+                        .data([lineDataMax]) //1-31:温度
+                        .attr('fill','none')
+                        .attr('stroke','#00CD00')
+                        .attr('stroke-width',2)
+                        //.attr("class", className + (isHeight ? " line_max" : " line_min"))
+                        .attr("d", lineMax) //d -> lineDataMax
+                        .attr("transform", 'translate(' + path_left + ',' + path_top + ')')
+
+
+                    svg.append("path")
+                        .data([lineDataMin]) //1-31:温度
+                        .attr('fill','none')
+                        .attr('stroke','#E0FFFF')
+                        .attr('stroke-width',2)
+                        //.attr("class", className + (isHeight ? " line_max" : " line_min"))
+                        .attr("d", lineMax) //d -> lineDataMax
+                        .attr("transform", 'translate(' + path_left + ',' + path_top + ')')
+
+                    });
+                });
+    }
+
+
+    for (var k = 0; k < 12; k++) {
+        colorBar.append("rect")
+            .style("fill", colorLinear(k))
+            .attr('x', k/2*(+scale_x.bandwidth()))
+            .attr('width', 1/2*+scale_x.bandwidth())
+            .attr('height', 25);
+
+    }
+
+    draw(true);
+})
+
+</script>
